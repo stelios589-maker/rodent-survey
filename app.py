@@ -206,21 +206,17 @@ if st.button("Generate PDF Report – Ready to Email", type="primary"):
                     pdf.set_font("Arial", size=10)
                     pdf.cell(0, 10, f"[Photo: {file.name} – skipped]", ln=1)
 
-            # Collect every photo from every uploader in the app
-            all_photos = []
             for var_name in dir():
                 var = globals()[var_name]
                 if isinstance(var, list) and var and hasattr(var[0], "name"):
                     all_photos.extend(var)
 
-            # Add every photo on its own page
             for photo in all_photos:
                 pdf.add_page()
                 pdf.set_font("Arial", "B", 12)
                 pdf.cell(0, 10, f"Photo: {photo.name}", ln=1)
                 add_photo(photo)
 
-            # Output PDF safely — NO MORE LATIN-1 ERRORS
             pdf_bytes = pdf.output()
             b64 = base64.b64encode(pdf_bytes).decode()
 
