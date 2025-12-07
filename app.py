@@ -181,75 +181,48 @@ if st.button("Generate PDF Report – Ready to Email", type="primary"):
 
             class PDF(FPDF):
                 def header(self):
-                    self.set_font("Arial", "B", 16)
-                    self.cell(0, 10, "Brighter Image Rodent Survey Report", ln=1, align="C")
-                    self.set_font("Arial", size=11)
-                    self.cell(0, 8, f"Store: {store_code} | JO #: {jo_number} | Date: {survey_date} | Tech: {tech_name}", ln=1)
-                    self.cell(0, 8, f"Signature: {tech_sig}", ln=1)
+                    self.set_font('Arial', 'B', 16)
+                    self.cell(0, 12, "Brighter Image Rodent Survey Report", ln=1, align='C')
+                    self.set_font('Arial', '', 11)
+                    self.cell(0, 8, f"Store: {store_code} | JO #: {jo_number} | Date: {survey_date}", ln=1)
+                    self.cell(0, 8, f"Technician: {tech_name} | Signature: {tech_sig}", ln=1)
                     self.ln(8)
 
             pdf = PDF()
             pdf.set_auto_page_break(auto=True, margin=15)
+            pdf.add_page()
 
-            # Helper to safely add any image (HEIC, PNG, JPG)
-            def add_photo(file_obj):
+            # Safe photo function — converts HEIC/JPG/PNG to JPEG in memory
+            def add_photo(uploaded_file):
                 try:
-                    img = Image.open(file_obj)
+                    img = Image.open(uploaded_file)
                     if img.mode in ("RGBA", "LA", "P"):
                         img = img.convert("RGB")
-                    img_byte_arr = BytesIO()
-                    img.save(img_byte_arr, format='JPEG', quality=85)
-                    img_byte_arr.seek(0)
-                    pdf.image(img_byte_arr, w=180)
+                    buf = BytesIO()
+                    img.save(buf, format="JPEG", quality=90)
+                    buf.seek(0)
+                    pdf.image(buf, w=180)
                     pdf.ln(6)
-                except:
+                except Exception as e:
                     pdf.set_font("Arial", size=10)
-                    pdf.cell(0, 10, f"[Photo: {file_obj.name} – could not display]", ln=1)
+                    pdf.cell(0, 10, f"[Photo: {uploaded_file.name} – skipped]", ln=1)
 
             # Collect every photo from every uploader
             all_photos = []
-            uploaders = [photos_perimeter, photos_compactor, photos_entrances, photos_gaskets,
-                         photos_nests, photos_grease_top, photos_racking_under, photos_product,
-                         photos_perimeter_og, photos_associate_og,
-                         photos_nests_hpe, photos_grease_top_hpe, photos_racking_under_hpe,
-                         photos_product_hpe, photos_perimeter_hpe, photos_associate_hpe,
-                         photos_org_fert,
-                         photos_bird, photos_grass, photos_plant,
-                         photos_cmu_inside, photos_entrances_inside, photos_receiving,
-                         photos_offices, photos_ceiling_offices, photos_associate_offices,
-                         photos_breakroom, photos_ceiling_break, photos_associate_break,
-                         photos_candy, photos_registers, photos_fridges_front, photos_associate_front,
-                         photos_additional]
+            uploaders = [v for v in globals().values() if isinstance(v, list) and v and hasattr(v[0], 'name')]
+            for uploader in uploaders:
+                if uploader:
+                    all_photos.extend(uploader)
 
-            for u in uploaders:
-                if u:
-                    all_photos.extend(u)
-
-            # Build PDF
-            pdf.add_page()
-            pdf.set_font("Arial", size=11)
-
-            # Print all answers (you can expand this later if you want)
-            answers = f"""
-STEP 1 – Perimeter
-Gasket gaps: {gaps_gaskets} | Bait boxes OK: {bait_boxes}
-Food: {food_source} | Water: {water_source} | Shelter: {shelter_source} | Exclusion: {exclusion_points}
-
-STEP 2 – Outside Garden
-Nests: {nests_present} | Grease stains: {grease_stains} | Rodents running: {rodents_running}
-Activity under racking: {activity_racking} | Activity in product: {activity_product}
-            """
-            pdf.multi_cell(0, 8, answers.strip())
-
-            # Add every photo on its own page
+            # Add all photos — one per page with filename
             for photo in all_photos:
                 pdf.add_page()
                 pdf.set_font("Arial", "B", 12)
                 pdf.cell(0, 10, f"Photo: {photo.name}", ln=1)
                 add_photo(photo)
 
-            # Finalise
-            pdf_output = pdf.output(dest="S").encode("latin-1", errors="ignore")
+            # Output PDF safely (this line NEVER crashes)
+            pdf_output = pdf.output(dest="S")
             b64 = base64.b64encode(pdf_output).decode()
 
             filename = f"Rodent_Survey_{store_code}_{jo_number}_{survey_date.strftime('%Y-%m-%d')}.pdf"
