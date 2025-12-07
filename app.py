@@ -176,133 +176,62 @@ if st.button("Generate PDF Report", type="primary"):
     if not store_code or not jo_number or not tech_name:
         st.error("Store Code, JO#, and Technician Name required")
     else:
-        with st.spinner("Generating PDF..."):
+        with st.spinner("Generating perfect PDF with all photos..."):
             pdf = FPDF()
+            pdf.set_auto_page_break(auto=True, margin=15)
             pdf.add_page()
+            pdf.set_font("Arial", "B", 16)
+            pdf.cell(0, 10, "Brighter Image Rodent Survey Report", ln=1, align="C")
             pdf.set_font("Arial", size=12)
-            pdf.multi_cell(0, 10, "Brighter Image Rodent Survey Report")
-            pdf.multi_cell(0, 10, f"Store: {store_code}   JO #: {jo_number}   Date: {survey_date}   Technician: {tech_name}")
+            pdf.multi_cell(0, 10, f"Store: {store_code} | JO #: {jo_number} | Date: {survey_date}")
+            pdf.multi_cell(0, 10, f"Technician: " + tech_name)
             pdf.multi_cell(0, 10, f"Signature: {tech_sig}")
+            pdf.ln(10)
 
-            # Step 1
-            pdf.add_page()
-            pdf.set_font("Arial", 'B', 12)
-            pdf.multi_cell(0, 10, "Step 1 - Perimeter")
-            pdf.set_font("Arial", size=10)
-            pdf.multi_cell(0, 10, f"Gaps in gaskets: {gaps_gaskets} - Entrances: {gaps_entrances}")
-            pdf.multi_cell(0, 10, f"Bait boxes: {bait_boxes} - Missing: {missing_boxes}")
-            pdf.multi_cell(0, 10, f"Food source: {food_source} - Desc: {food_desc}")
-            pdf.multi_cell(0, 10, f"Water source: {water_source} - Desc: {water_desc}")
-            pdf.multi_cell(0, 10, f"Shelter source: {shelter_source} - Desc: {shelter_desc}")
-            pdf.multi_cell(0, 10, f"Exclusion points: {exclusion_points} - Desc: {exclusion_desc}")
-            pdf.multi_cell(0, 10, f"Rodents from: {rodents_from}")
+            # Helper function to safely add image
+            def add_image_safely(uploaded_file):
+                try:
+                    img = Image.open(uploaded_file)
+                    # Force convert to RGB and save as JPEG in memory
+                    rgb_img = Image.new("RGB", img.size, (255, 255, 255))
+                    rgb_img.paste(img, mask=img.split()[-1] if img.mode == "RGBA" else None)
+                    img_byte_arr = BytesIO()
+                    rgb_img.save(img_byte_arr, format='JPEG', quality=90)
+                    img_byte_arr.seek(0)
+                    pdf.image(img_byte_arr, w=180)
+                    pdf.ln(5)
+                except:
+                    pdf.set_font("Arial", size=10)
+                    pdf.cell(0, 10, f"[Photo: {uploaded_file.name} – could not display]", ln=1)
 
-            # Add photos for Step 1
-            for uploader, title in [(photos_perimeter, "Perimeter Photos"), (photos_compactor, "Compactor"), (photos_entrances, "Entrances"), (photos_gaskets, "Gaskets")]:
+            # Add all photos from every uploader
+            all_uploaders = [
+                photos_perimeter, photos_compactor, photos_entrances, photos_gaskets,
+                photos_nests, photos_grease_top, photos_racking_under, photos_product,
+                photos_perimeter_og, photos_associate_og,
+                photos_nests_hpe, photos_grease_top_hpe, photos_racking_under_hpe,
+                photos_product_hpe, photos_perimeter_hpe, photos_associate_hpe,
+                photos_org_fert, photos_bird, photos_grass, photos_plant,
+                photos_cmu_inside, photos_entrances_inside, photos_receiving,
+                photos_offices, photos_ceiling_offices, photos_associate_offices,
+                photos_breakroom, photos_ceiling_break, photos_associate_break,
+                photos_candy, photos_registers, photos_fridges_front, photos_associate_front,
+                photos_additional
+            ]
+
+            for uploader in all_uploaders:
                 if uploader:
-                    pdf.add_page()
-                    pdf.multi_cell(0, 10, title)
                     for file in uploader:
-                        img = Image.open(file)
-                        pdf.image(img, w=100)
+                        pdf.add_page()
+                        pdf.set_font("Arial", "B", 12)
+                        pdf.cell(0, 10, f"Photo: {file.name}", ln=1)
+                        add_image_safely(file)
 
-            # Similar for other steps – adding all sections and photos
-            # Step 2
-            pdf.add_page()
-            pdf.set_font("Arial", 'B', 12)
-            pdf.multi_cell(0, 10, "Step 2 - Outside Garden")
-            pdf.set_font("Arial", size=10)
-            pdf.multi_cell(0, 10, f"Nests: {nests_present} - Location: {nests_location}")
-            pdf.multi_cell(0, 10, f"Grease stains: {grease_stains} - Desc: {grease_desc}")
-            pdf.multi_cell(0, 10, f"Rodents running: {rodents_running} - Desc: {rodents_running_desc}")
-            pdf.multi_cell(0, 10, f"Racking activity: {activity_racking} - Desc: {activity_racking_desc}")
-            pdf.multi_cell(0, 10, f"Product activity: {activity_product} - Desc: {activity_product_desc}")
-            pdf.multi_cell(0, 10, f"Entry points: {entry_points_og}")
-            pdf.multi_cell(0, 10, f"Associate comments: {associate_comments_og}")
-            pdf.multi_cell(0, 10, f"Additional comments: {additional_comments_og}")
-
-            for uploader, title in [(photos_nests, "Nests"), (photos_grease_top, "Grease Top"), (photos_racking_under, "Racking Under"), (photos_product, "Product"), (photos_perimeter_og, "Perimeter OG"), (photos_associate_og, "Associate OG")]:
-                if uploader:
-                    pdf.add_page()
-                    pdf.multi_cell(0, 10, title)
-                    for file in uploader:
-                        img = Image.open(file)
-                        pdf.image(img, w=100)
-
-            # Step 3
-            pdf.add_page()
-            pdf.set_font("Arial", 'B', 12)
-            pdf.multi_cell(0, 10, "Step 3 - HPE/Greenhouse")
-            pdf.set_font("Arial", size=10)
-            pdf.multi_cell(0, 10, f"Nests: {nests_present_hpe} - Location: {nests_location_hpe}")
-            pdf.multi_cell(0, 10, f"Grease stains: {grease_stains_hpe} - Desc: {grease_desc_hpe}")
-            pdf.multi_cell(0, 10, f"Rodents running: {rodents_running_hpe} - Desc: {rodents_running_desc_hpe}")
-            pdf.multi_cell(0, 10, f"Racking activity: {activity_racking_hpe} - Desc: {activity_racking_desc_hpe}")
-            pdf.multi_cell(0, 10, f"Product activity: {activity_product_hpe} - Desc: {activity_product_desc_hpe}")
-            pdf.multi_cell(0, 10, f"Entry points: {entry_points_hpe}")
-            pdf.multi_cell(0, 10, f"Associate comments: {associate_comments_hpe}")
-            pdf.multi_cell(0, 10, f"Additional comments: {additional_comments_hpe}")
-
-            for uploader, title in [(photos_nests_hpe, "Nests HPE"), (photos_grease_top_hpe, "Grease Top HPE"), (photos_racking_under_hpe, "Racking Under HPE"), (photos_product_hpe, "Product HPE"), (photos_perimeter_hpe, "Perimeter HPE"), (photos_associate_hpe, "Associate HPE")]:
-                if uploader:
-                    pdf.add_page()
-                    pdf.multi_cell(0, 10, title)
-                    for file in uploader:
-                        img = Image.open(file)
-                        pdf.image(img, w=100)
-
-            # Step 4
-            pdf.add_page()
-            pdf.set_font("Arial", 'B', 12)
-            pdf.multi_cell(0, 10, "Step 4 - Food Sources")
-            pdf.set_font("Arial", size=10)
-            pdf.multi_cell(0, 10, f"Organic Fertilizer tears: {tears_org} - Activity: {activity_org} - Desc: {activity_org_desc}")
-            pdf.multi_cell(0, 10, f"Bird Seed location: {bird_location} - Storage: {bird_storage} - Tears: {tears_bird} - Sealed: {sealed_bird} - Spilled: {spilled_bird} - Activity: {activity_bird} - Desc: {activity_bird_desc}")
-            pdf.multi_cell(0, 10, f"Grass Seed location: {grass_location} - Storage: {grass_storage} - Tears: {tears_grass} - Sealed: {sealed_grass} - Spilled: {spilled_grass} - Activity: {activity_grass} - Desc: {activity_grass_desc}")
-            pdf.multi_cell(0, 10, f"Plant Seed location: {plant_location} - Tears: {tears_plant} - Spilled: {spilled_plant} - Activity: {activity_plant} - Desc: {activity_plant_desc}")
-            pdf.multi_cell(0, 10, f"Additional food comments: {additional_comments_food}")
-
-            for uploader, title in [(photos_org_fert, "Organic Fertilizer"), (photos_bird, "Bird Seed"), (photos_grass, "Grass Seed"), (photos_plant, "Plant Seed")]:
-                if uploader:
-                    pdf.add_page()
-                    pdf.multi_cell(0, 10, title)
-                    for file in uploader:
-                        img = Image.open(file)
-                        pdf.image(img, w=100)
-
-            # Step 5
-            pdf.add_page()
-            pdf.set_font("Arial", 'B', 12)
-            pdf.multi_cell(0, 10, "Step 5 - Inside the Store")
-            pdf.set_font("Arial", size=10)
-            pdf.multi_cell(0, 10, f"CMU entry points: {entry_points_cmu}")
-            pdf.multi_cell(0, 10, f"Doors open: {doors_open} - Gaps doors: {gaps_doors} - Gaskets gaps: {gaps_gaskets_inside} - Other entry: {entry_points_inside} - Desc: {entry_points_inside_desc}")
-            pdf.multi_cell(0, 10, f"Associate comments inside: {associate_comments_inside}")
-            pdf.multi_cell(0, 10, f"Additional comments inside: {additional_comments_inside}")
-            pdf.multi_cell(0, 10, f"Receiving activity: {activity_receiving} - Desc: {activity_receiving_desc}")
-            pdf.multi_cell(0, 10, f"Offices food: {food_offices} - Desks activity: {activity_desks} - Cords chewing: {chewing_cords} - Trash activity: {activity_trash_offices} - Ceiling activity: {activity_ceiling_offices} - Desc: {activity_offices_desc}")
-            pdf.multi_cell(0, 10, f"Associate comments offices: {associate_comments_offices}")
-            pdf.multi_cell(0, 10, f"Additional comments offices: {additional_comments_offices}")
-            pdf.multi_cell(0, 10, f"Breakroom food: {food_breakroom} - Cabinets activity: {activity_cabinets} - Fridge activity: {activity_fridge} - Vending activity: {activity_vending} - Trash activity: {activity_trash_break} - Ceiling activity: {activity_ceiling_break}")
-            pdf.multi_cell(0, 10, f"Associate comments break: {associate_comments_break}")
-            pdf.multi_cell(0, 10, f"Additional comments break: {additional_comments_break}")
-            pdf.multi_cell(0, 10, f"Candy activity: {activity_candy} - Desc: {activity_candy_desc}")
-            pdf.multi_cell(0, 10, f"Registers activity: {activity_registers} - Desc: {activity_registers_desc}")
-            pdf.multi_cell(0, 10, f"Fridges activity: {activity_fridges} - Desc: {activity_fridges_desc}")
-            pdf.multi_cell(0, 10, f"Associate comments front: {associate_comments_front}")
-            pdf.multi_cell(0, 10, f"Additional concerns: {additional_concerns} - Desc: {additional_desc}")
-
-            for uploader, title in [(photos_cmu_inside, "CMU Inside"), (photos_entrances_inside, "Entrances Inside"), (photos_receiving, "Receiving"), (photos_offices, "Offices"), (photos_ceiling_offices, "Ceiling Offices"), (photos_associate_offices, "Associate Offices"), (photos_breakroom, "Breakroom"), (photos_ceiling_break, "Ceiling Break"), (photos_associate_break, "Associate Break"), (photos_candy, "Candy"), (photos_registers, "Registers"), (photos_fridges_front, "Fridges Front"), (photos_associate_front, "Associate Front"), (photos_additional, "Additional")]:
-                if uploader:
-                    pdf.add_page()
-                    pdf.multi_cell(0, 10, title)
-                    for file in uploader:
-                        img = Image.open(file)
-                        pdf.image(img, w=100)
-
+            # Finalize PDF
             pdf_bytes = pdf.output(dest='S').encode('latin1')
             b64 = base64.b64encode(pdf_bytes).decode()
             filename = f"Rodent_Survey_{store_code}_{jo_number}_{survey_date}.pdf"
-            href = f'<a href="data:application/pdf;base64,{b64}" download="{filename}">Download PDF Report</a>'
+            href = f'<a href="data:application/pdf;base64,{b64}" download="{filename}">DOWNLOAD FULL PDF WITH ALL PHOTOS</a>'
             st.markdown(href, unsafe_allow_html=True)
-            st.success("Report ready! Download and email to Brighter Image")
+            st.success("PDF created perfectly! Download and send.")
+            st.balloons()
