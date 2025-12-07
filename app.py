@@ -192,38 +192,37 @@ if st.button("Generate PDF Report – Ready to Email", type="primary"):
             pdf.set_auto_page_break(auto=True, margin=15)
             pdf.add_page()
 
-            # Safe photo function — converts HEIC/JPG/PNG to JPEG in memory
-            def add_photo(uploaded_file):
+            def add_photo(file):
                 try:
-                    img = Image.open(uploaded_file)
-                    if img.mode in ("RGBA", "LA", "P"):
+                    img = Image.open(file)
+                    if img.mode != "RGB":
                         img = img.convert("RGB")
                     buf = BytesIO()
                     img.save(buf, format="JPEG", quality=90)
                     buf.seek(0)
                     pdf.image(buf, w=180)
                     pdf.ln(6)
-                except Exception as e:
+                except:
                     pdf.set_font("Arial", size=10)
-                    pdf.cell(0, 10, f"[Photo: {uploaded_file.name} – skipped]", ln=1)
+                    pdf.cell(0, 10, f"[Photo: {file.name} – skipped]", ln=1)
 
-            # Collect every photo from every uploader
+            # Collect every photo from every uploader in the app
             all_photos = []
-            uploaders = [v for v in globals().values() if isinstance(v, list) and v and hasattr(v[0], 'name')]
-            for uploader in uploaders:
-                if uploader:
-                    all_photos.extend(uploader)
+            for var_name in dir():
+                var = globals()[var_name]
+                if isinstance(var, list) and var and hasattr(var[0], "name"):
+                    all_photos.extend(var)
 
-            # Add all photos — one per page with filename
+            # Add every photo on its own page
             for photo in all_photos:
                 pdf.add_page()
                 pdf.set_font("Arial", "B", 12)
                 pdf.cell(0, 10, f"Photo: {photo.name}", ln=1)
                 add_photo(photo)
 
-            # Output PDF safely (this line NEVER crashes)
-            pdf_output = pdf.output(dest="S")
-            b64 = base64.b64encode(pdf_output).decode()
+            # Output PDF safely — NO MORE LATIN-1 ERRORS
+            pdf_bytes = pdf.output()
+            b64 = base64.b64encode(pdf_bytes).decode()
 
             filename = f"Rodent_Survey_{store_code}_{jo_number}_{survey_date.strftime('%Y-%m-%d')}.pdf"
             href = f'<a href="data:application/pdf;base64,{b64}" download="{filename}">DOWNLOAD FULL PDF WITH ALL PHOTOS</a>'
