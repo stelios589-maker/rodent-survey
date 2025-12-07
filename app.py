@@ -172,66 +172,88 @@ with st.expander("Step 5 - Inspect and Photograph Inside the Store"):
     additional_desc = st.text_area("Describe the additional areas of concern. Provide photos")
     photos_additional = st.file_uploader("Photos of additional areas of concern", type=["png","jpg","jpeg","heic"], accept_multiple_files=True, key="p5_additional")
 
-if st.button("Generate PDF Report", type="primary"):
+if st.button("Generate PDF Report – Ready to Email", type="primary"):
     if not store_code or not jo_number or not tech_name:
-        st.error("Store Code, JO#, and Technician Name required")
+        st.error("Store Code, JO#, and Technician Name are required")
     else:
-        with st.spinner("Generating perfect PDF with all photos..."):
-            pdf = FPDF()
-            pdf.set_auto_page_break(auto=True, margin=15)
-            pdf.add_page()
-            pdf.set_font("Arial", "B", 16)
-            pdf.cell(0, 10, "Brighter Image Rodent Survey Report", ln=1, align="C")
-            pdf.set_font("Arial", size=12)
-            pdf.multi_cell(0, 10, f"Store: {store_code} | JO #: {jo_number} | Date: {survey_date}")
-            pdf.multi_cell(0, 10, f"Technician: " + tech_name)
-            pdf.multi_cell(0, 10, f"Signature: {tech_sig}")
-            pdf.ln(10)
+        with st.spinner("Creating your perfect PDF with all photos…"):
+            from fpdf import FPDF
 
-            # Helper function to safely add image
-            def add_image_safely(uploaded_file):
+            class PDF(FPDF):
+                def header(self):
+                    self.set_font("Arial", "B", 16)
+                    self.cell(0, 10, "Brighter Image Rodent Survey Report", ln=1, align="C")
+                    self.set_font("Arial", size=11)
+                    self.cell(0, 8, f"Store: {store_code} | JO #: {jo_number} | Date: {survey_date} | Tech: {tech_name}", ln=1)
+                    self.cell(0, 8, f"Signature: {tech_sig}", ln=1)
+                    self.ln(8)
+
+            pdf = PDF()
+            pdf.set_auto_page_break(auto=True, margin=15)
+
+            # Helper to safely add any image (HEIC, PNG, JPG)
+            def add_photo(file_obj):
                 try:
-                    img = Image.open(uploaded_file)
-                    # Force convert to RGB and save as JPEG in memory
-                    rgb_img = Image.new("RGB", img.size, (255, 255, 255))
-                    rgb_img.paste(img, mask=img.split()[-1] if img.mode == "RGBA" else None)
+                    img = Image.open(file_obj)
+                    if img.mode in ("RGBA", "LA", "P"):
+                        img = img.convert("RGB")
                     img_byte_arr = BytesIO()
-                    rgb_img.save(img_byte_arr, format='JPEG', quality=90)
+                    img.save(img_byte_arr, format='JPEG', quality=85)
                     img_byte_arr.seek(0)
                     pdf.image(img_byte_arr, w=180)
-                    pdf.ln(5)
+                    pdf.ln(6)
                 except:
                     pdf.set_font("Arial", size=10)
-                    pdf.cell(0, 10, f"[Photo: {uploaded_file.name} – could not display]", ln=1)
+                    pdf.cell(0, 10, f"[Photo: {file_obj.name} – could not display]", ln=1)
 
-            # Add all photos from every uploader
-            all_uploaders = [
-                photos_perimeter, photos_compactor, photos_entrances, photos_gaskets,
-                photos_nests, photos_grease_top, photos_racking_under, photos_product,
-                photos_perimeter_og, photos_associate_og,
-                photos_nests_hpe, photos_grease_top_hpe, photos_racking_under_hpe,
-                photos_product_hpe, photos_perimeter_hpe, photos_associate_hpe,
-                photos_org_fert, photos_bird, photos_grass, photos_plant,
-                photos_cmu_inside, photos_entrances_inside, photos_receiving,
-                photos_offices, photos_ceiling_offices, photos_associate_offices,
-                photos_breakroom, photos_ceiling_break, photos_associate_break,
-                photos_candy, photos_registers, photos_fridges_front, photos_associate_front,
-                photos_additional
-            ]
+            # Collect every photo from every uploader
+            all_photos = []
+            uploaders = [photos_perimeter, photos_compactor, photos_entrances, photos_gaskets,
+                         photos_nests, photos_grease_top, photos_racking_under, photos_product,
+                         photos_perimeter_og, photos_associate_og,
+                         photos_nests_hpe, photos_grease_top_hpe, photos_racking_under_hpe,
+                         photos_product_hpe, photos_perimeter_hpe, photos_associate_hpe,
+                         photos_org_fert,
+                         photos_bird, photos_grass, photos_plant,
+                         photos_cmu_inside, photos_entrances_inside, photos_receiving,
+                         photos_offices, photos_ceiling_offices, photos_associate_offices,
+                         photos_breakroom, photos_ceiling_break, photos_associate_break,
+                         photos_candy, photos_registers, photos_fridges_front, photos_associate_front,
+                         photos_additional]
 
-            for uploader in all_uploaders:
-                if uploader:
-                    for file in uploader:
-                        pdf.add_page()
-                        pdf.set_font("Arial", "B", 12)
-                        pdf.cell(0, 10, f"Photo: {file.name}", ln=1)
-                        add_image_safely(file)
+            for u in uploaders:
+                if u:
+                    all_photos.extend(u)
 
-            # Finalize PDF
-            pdf_bytes = pdf.output(dest='S').encode('latin1')
-            b64 = base64.b64encode(pdf_bytes).decode()
-            filename = f"Rodent_Survey_{store_code}_{jo_number}_{survey_date}.pdf"
+            # Build PDF
+            pdf.add_page()
+            pdf.set_font("Arial", size=11)
+
+            # Print all answers (you can expand this later if you want)
+            answers = f"""
+STEP 1 – Perimeter
+Gasket gaps: {gaps_gaskets} | Bait boxes OK: {bait_boxes}
+Food: {food_source} | Water: {water_source} | Shelter: {shelter_source} | Exclusion: {exclusion_points}
+
+STEP 2 – Outside Garden
+Nests: {nests_present} | Grease stains: {grease_stains} | Rodents running: {rodents_running}
+Activity under racking: {activity_racking} | Activity in product: {activity_product}
+            """
+            pdf.multi_cell(0, 8, answers.strip())
+
+            # Add every photo on its own page
+            for photo in all_photos:
+                pdf.add_page()
+                pdf.set_font("Arial", "B", 12)
+                pdf.cell(0, 10, f"Photo: {photo.name}", ln=1)
+                add_photo(photo)
+
+            # Finalise
+            pdf_output = pdf.output(dest="S").encode("latin-1", errors="ignore")
+            b64 = base64.b64encode(pdf_output).decode()
+
+            filename = f"Rodent_Survey_{store_code}_{jo_number}_{survey_date.strftime('%Y-%m-%d')}.pdf"
             href = f'<a href="data:application/pdf;base64,{b64}" download="{filename}">DOWNLOAD FULL PDF WITH ALL PHOTOS</a>'
             st.markdown(href, unsafe_allow_html=True)
-            st.success("PDF created perfectly! Download and send.")
+            st.success("PDF created perfectly! Download it now.")
             st.balloons()
