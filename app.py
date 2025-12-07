@@ -30,15 +30,8 @@ with st.expander("Rodent Evidence Questions", expanded=True):
 st.write("### Photos (take with phone camera)")
 uploaded_photos = st.file_uploader("Take or upload photos", type=["png","jpg","jpeg","heic"], accept_multiple_files=True)
 
-signature = st.canvas(
-    height=200,
-    drawing_mode="freeline",
-    stroke_width=3,
-    stroke_color="#000000",
-    background_color="#FFFFFF",
-    key="signature"
-)
-
+tech_signature = st.text_input("Technician Signature (type your name to sign)")
+tech_name = st.text_input("Technician Name")
 tech_name = st.text_input("Technician Name")
 
 if st.button("Generate PDF Report", type="primary"):
